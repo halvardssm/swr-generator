@@ -37,7 +37,7 @@ export type GetArgT<T extends (...args: any) => any> = Parameters<T>[0];
 `
 
 function generateHooks(options:GenerateSwrOptions){
-    const text = options.methods.map(method=>{
+    const text = [...new Set(options.methods)].map(method=>{
         const capitalizedMethod = method[0].toUpperCase() + method.substr(1);
         return `
         export type Use${capitalizedMethod}Data = GetDataT<${options.className}["${method}"]>;
