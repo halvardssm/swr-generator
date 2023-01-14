@@ -4,60 +4,17 @@ type GenerateSwrOptions = {
     methods:string
     initiatedClassExportName:string
     classConstructorOptions: string
+    extraImports?:string
 }
 
 function generateSwr(options:GenerateSwrOptions){
     let fileText = imports
     + fetcherImport(options)
     +types
-    +generateFetchers(options)
-    +generateMutations(options)
+    +generateHooks(options)
 }
 
-function generateFetchers(options:GenerateSwrOptions){
-    const text = options.methods.map(method=>{
-        const capitalizedMethod = ''
-    })
-}
-
-function generateFetcher(){
-/**
- * export type UseListMessageTemplatesT = GetFetcherType<
-  NorskGassnettApi["listMessageTemplates"]
->;
-export const useListMessageTemplates = (
-  arg?: UseListMessageTemplatesT["arg"],
-  config?: UseListMessageTemplatesT["config"]
-) =>
-  useSWR(
-    [norskGassnettApi.listMessageTemplates.name, arg],
-    () => norskGassnettApi.listMessageTemplates(),
-    config
-  ) as UseListMessageTemplatesT["data"];
-
- */
-
-  return ``
-}
-
-function generateMutations(){
-
-}
-
-function generateMutation(){
-/**
- * export type UseLoginT = GetMutationT<string, NorskGassnettApi["login"]>;
-export const useLogin = (options?: UseLoginT["options"]) =>
-  useSWRMutation(
-    norskGassnettApi.login.name,
-    (_, { arg }) => norskGassnettApi.login(arg),
-    options
-  ) as UseLoginT["hook"];
-
- */
-}
-
-const imports = `import useSWR, { BareFetcher, SWRResponse, SWRConfiguration, Key } from "swr";
+const imports = `import useSWR, { SWRResponse, SWRConfiguration } from "swr";
 import useSWRMutation, {
   SWRMutationConfiguration,
   SWRMutationResponse,
@@ -66,7 +23,7 @@ import useSWRMutation, {
 
 function fetcherImport(options:GenerateSwrOptions){
     return `import { ${options.className} } from "${options.path}";
-
+${options.extraImports?options.extraImports:''}
 export const ${options.initiatedClassExportName} = new ${options.className}(${options.classConstructorOptions});
 `
 }
@@ -74,27 +31,41 @@ export const ${options.initiatedClassExportName} = new ${options.className}(${op
 const types = `type AsyncFunction = (...args: any) => Promise<any>;
 export type GetDataT<T extends AsyncFunction> = ReturnType<Awaited<T>>;
 export type GetArgT<T extends (...args: any) => any> = Parameters<T>[0];
-
-/**
- * Mutations
- * See https://swr.vercel.app/docs/mutation
- */
-
-export type GetMutationT<K extends Key, T extends AsyncFunction> = {
-  data: GetDataT<T>;
-  arg: GetArgT<T>;
-  options: SWRMutationConfiguration<GetDataT<T>, any, GetArgT<T>, K>;
-  hook: SWRMutationResponse<GetDataT<T>, any, GetArgT<T>, K>;
-};
-
-/**
- * Fetchers
- * See https://swr.vercel.app/docs/data-fetching
- */
-
-export type GetFetcherType<T extends AsyncFunction> = {
-  data: SWRResponse<GetDataT<T>, any>;
-  arg: GetArgT<T>;
-  config: SWRConfiguration<GetDataT<T>, any, T>;
-};
 `
+
+function generateHooks(options:GenerateSwrOptions){
+    const text = options.methods.map(method=>{
+        const capitalizedMethod = method[0].toUpperCase() + method.substr(1);
+        return `
+        export type Use${capitalizedMethod}Data = GetDataT<${options.className}["${method}"]>;
+        export type Use${capitalizedMethod}Arg = GetArgT<${options.className}["${method}"]>;
+        export type Use${capitalizedMethod}FetcherConfig = SWRMutationConfiguration<Use${capitalizedMethod}Data, any, Use${capitalizedMethod}Arg>;
+        export type Use${capitalizedMethod}FetcherResponse = SWRResponse<Use${capitalizedMethod}Data, any>;
+        export type Use${capitalizedMethod}MutationConfig = SWRMutationConfiguration<Use${capitalizedMethod}Data, any, Use${capitalizedMethod}Arg>;
+        export type Use${capitalizedMethod}MutationResponse = SWRMutationResponse<Use${capitalizedMethod}Data, any, Use${capitalizedMethod}Arg>;
+        /**
+         * use${capitalizedMethod}Fetcher
+         * See https://swr.vercel.app/docs/data-fetching
+         */
+        export const use${capitalizedMethod}Fetcher = (
+            arg?: Use${capitalizedMethod}Arg,
+            config?: Use${capitalizedMethod}FetcherConfig
+          ) =>
+            useSWR(
+              [${options.initiatedClassExportName}.${method}.name, arg],
+              ([_,arg]) => ${options.initiatedClassExportName}.${method}(arg),
+              config
+            ) as Use${capitalizedMethod}FetcherResponse;
+        /**
+         * use${capitalizedMethod}Mutation
+         * See https://swr.vercel.app/docs/mutation
+         */
+        export const use${capitalizedMethod}Mutation = (config?: Use${capitalizedMethod}MutationConfig) =>
+            useSWRMutation(
+                ${options.initiatedClassExportName}.${method}.name,
+              (_, { arg }) => ${options.initiatedClassExportName}.${method}(arg),
+              config
+            ) as Use${capitalizedMethod}MutationResponse;
+        `
+    })
+}
