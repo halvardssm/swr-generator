@@ -5,6 +5,7 @@ type GenerateSwrOptions = {
     initiatedClassExportName:string
     classConstructorOptions: string
     extraImports?:string
+    outputPath:string
 }
 
 function generateSwr(options:GenerateSwrOptions){
@@ -12,6 +13,8 @@ function generateSwr(options:GenerateSwrOptions){
     + fetcherImport(options)
     +types
     +generateHooks(options)
+
+    Deno.writeTextFile(outputPath,fileText)
 }
 
 const imports = `import useSWR, { SWRResponse, SWRConfiguration } from "swr";
