@@ -1,20 +1,24 @@
 type GenerateSwrOptions = {
-    className:string
-    classPath:string
-    methods:string
-    initiatedClassExportName:string
-    classConstructorOptions: string
-    extraImports?:string
-    outputPath:string
+  className: string;
+  classPath: string;
+  methods: string[];
+  initiatedClassExportName: string;
+  classConstructorOptions: string;
+  extraImports?: string;
+  outputPath: string;
+};
+
+export function generateAndWriteSwr(options: GenerateSwrOptions) {
+  const text=generateSwr(options)
+  Deno.writeTextFile(options.outputPath, text);
 }
+export function generateSwr(options: GenerateSwrOptions) {
+  const fileText = imports +
+    fetcherImport(options) +
+    types +
+    generateHooks(options);
 
-function generateSwr(options:GenerateSwrOptions){
-    let fileText = imports
-    + fetcherImport(options)
-    +types
-    +generateHooks(options)
-
-    Deno.writeTextFile(outputPath,fileText)
+  return fileText;
 }
 
 const imports = `import useSWR, { SWRResponse, SWRConfiguration } from "swr";
@@ -22,24 +26,24 @@ import useSWRMutation, {
   SWRMutationConfiguration,
   SWRMutationResponse,
 } from "swr/mutation";
-`
+`;
 
-function fetcherImport(options:GenerateSwrOptions){
-    return `import { ${options.className} } from "${options.path}";
-${options.extraImports?options.extraImports:''}
+function fetcherImport(options: GenerateSwrOptions) {
+  return `import { ${options.className} } from "${options.classPath}";
+${options.extraImports ? options.extraImports : ""}
 export const ${options.initiatedClassExportName} = new ${options.className}(${options.classConstructorOptions});
-`
+`;
 }
 
 const types = `type AsyncFunction = (...args: any) => Promise<any>;
 export type GetDataT<T extends AsyncFunction> = ReturnType<Awaited<T>>;
 export type GetArgT<T extends (...args: any) => any> = Parameters<T>[0];
-`
+`;
 
-function generateHooks(options:GenerateSwrOptions){
-    const text = [...new Set(options.methods)].map(method=>{
-        const capitalizedMethod = method[0].toUpperCase() + method.substr(1);
-        return `
+function generateHooks(options: GenerateSwrOptions) {
+  return [...new Set(options.methods)].map((method) => {
+    const capitalizedMethod = method[0].toUpperCase() + method.substr(1);
+    return `
 export type Use${capitalizedMethod}Data = GetDataT<${options.className}["${method}"]>;
 export type Use${capitalizedMethod}Arg = GetArgT<${options.className}["${method}"]>;
 export type Use${capitalizedMethod}FetcherConfig = SWRMutationConfiguration<Use${capitalizedMethod}Data, any, Use${capitalizedMethod}Arg>;
@@ -69,6 +73,6 @@ export const use${capitalizedMethod}Mutation = (config?: Use${capitalizedMethod}
       (_, { arg }) => ${options.initiatedClassExportName}.${method}(arg),
       config
     ) as Use${capitalizedMethod}MutationResponse;
-`
-    })
+`;
+  });
 }
